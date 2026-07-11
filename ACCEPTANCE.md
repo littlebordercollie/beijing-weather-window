@@ -52,12 +52,13 @@ npm ci
 生产入口与公网文件字节一致：
 
 ```text
-index.html  908798580e72d6020ea68fb0c9ecbaaca74b2d74643e81bc36aaa17e297007b0
-map js      4cee1e6c34687e589467eef82a83ea2fb4fd5b538675459fc690c7fa8a62d5b7
-list.html   baf15fb5491219f031407bf7804d1019360bf31198a455766e7e832c31a2b4b5
+index.html             b4688fb3d45846f3e0638cf35006d08a6d4188d928419d524a582e2996ed13e9
+map-BOAHxLYO.js         6baf809ae6e53ebb9cf003c8611d87c146a9bba3f627334f3412bfba2dfc21b3
+list.html              60eaf9dae21d162647462298f20e1019805494248ea53c9da91950b9b68256d6
+list-DayZsJkF.js        64cd91b9524dafc2d7255ba2c6f98af09499d5a73da63455cc5624c3844cad89
 ```
 
-以上三个哈希是修复前的 2026-07-11 快照：当时由本地 `docs/` 文件与 GitHub Pages 下载文件分别计算，结果逐一相同。本次修复发布后将以新哈希覆盖该记录。
+以上哈希在修复版提交 `e9e3fb9` 的 Pages 部署成功后计算；本地 `docs/` 与公网下载文件逐一相同。
 
 ## 浏览器核验说明
 
