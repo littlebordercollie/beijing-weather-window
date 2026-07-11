@@ -1,5 +1,4 @@
-// 常用地点坐标在 2026-07-11 通过 OpenStreetMap Nominatim 逐项核验。
-// 仅作为在线地理编码超时时的即时索引；任意地点仍可在线搜索或在地图点选。
+// 常用地点坐标在 2026-07-11 逐项核验，用于常用查询的无网络降级。
 export const POPULAR_PLACES = [
   { name: '北京大学', displayName: '北京大学 · 海淀区颐和园路 5 号', lat: 39.9918215, lon: 116.3039468, aliases: ['北大'] },
   { name: '清华大学', displayName: '清华大学 · 海淀区双清路 30 号', lat: 40.0022905, lon: 116.320963, aliases: ['清华'] },
@@ -23,6 +22,6 @@ export function searchPopularPlaces(query) {
   if (!needle) return [];
   return POPULAR_PLACES.filter((place) => {
     const candidates = [place.name, place.displayName, ...place.aliases].map(normalized);
-    return candidates.some((candidate) => candidate.includes(needle) || needle.includes(candidate));
+    return candidates.some((candidate) => candidate.includes(needle));
   }).map((place) => ({ ...place, type: 'verified-local-index' }));
 }

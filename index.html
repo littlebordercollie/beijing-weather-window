@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="输入北京目的地与到达时间，查看附近公开参考台站、周边格点与未来两小时降雨窗口。">
     <meta name="theme-color" content="#07151c">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.basemaps.cartocdn.com; connect-src 'self' https://api.open-meteo.com https://photon.komoot.io https://geo.datav.aliyun.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
     <title>雨窗｜北京目的地降雨决策地图</title>
     <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
     <link rel="preconnect" href="https://api.open-meteo.com">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
   </head>
   <body class="map-page">
     <div class="weather-atmosphere" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -33,7 +35,7 @@
       <section class="command-panel glass-panel" aria-labelledby="command-title">
         <div class="eyebrow"><span>01</span> DESTINATION BRIEF</div>
         <h1 id="command-title">到达时，<em>雨走了吗？</em></h1>
-        <p class="command-panel__intro">输入目的地与到达耗时。系统把公开参考台站、五个周边格点和未来两小时放到同一张图里。</p>
+        <p class="command-panel__intro">输入目的地与到达耗时。系统把公开参考台站、五个周边模型格点和覆盖行程的预报窗口放到同一张图里。</p>
 
         <form id="location-form" class="location-form">
           <label for="location-input">目的地</label>
@@ -51,21 +53,21 @@
             <input id="eta-input" type="range" min="15" max="180" step="15" value="45" aria-label="预计到达分钟数">
             <div class="range-labels"><span>15 分</span><span>3 小时</span></div>
           </div>
-          <div class="radius-control">
-            <span>观测半径</span>
+          <fieldset class="radius-control">
+            <legend>观测半径</legend>
             <div class="segmented">
               <button type="button" data-radius="3" aria-pressed="true">3 km</button>
               <button type="button" data-radius="5" aria-pressed="false">5 km</button>
             </div>
-          </div>
+          </fieldset>
         </div>
 
-        <button id="locate-button" class="locate-button" type="button"><span>◎</span>使用我的位置</button>
+        <button id="locate-button" class="locate-button" type="button"><span>◎</span>使用我的大致位置</button>
         <div id="data-status" class="data-status" data-state="loading" role="status"><span class="status-dot"></span>正在初始化…</div>
 
         <div class="truth-note">
           <span>!</span>
-          <p><b>证据边界</b> 站号与坐标来自北京市官方标准；实时数值为站旁格点估计，不冒充台站原始观测。</p>
+          <p><b>证据边界</b> 站号与坐标来自北京市官方标准；实时数值为站旁模型格点估计，不冒充台站原始观测。定位仅在浏览器保存降低精度后的坐标，分享链接前请检查地址栏。</p>
         </div>
       </section>
 
@@ -84,6 +86,7 @@
         </div>
         <p data-risk-advice>数据返回后生成可复现的出行建议。</p>
         <div class="weather-snapshot" data-weather-snapshot></div>
+        <small class="data-credit">模型天气数据：<a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>（CC BY 4.0）</small>
         <div class="insight-grid">
           <div><span>圈内参考站</span><b><i data-station-count>0</i> 站</b><small id="nearest-station">正在计算</small></div>
           <div><span>独立模型网格</span><b><i id="grid-count">—</i> 格</b><small>五点探针覆盖</small></div>
@@ -95,7 +98,7 @@
 
       <section class="timeline-panel glass-panel" aria-labelledby="timeline-title">
         <div class="timeline-panel__head">
-          <div><span class="micro-label">NEXT 120 MINUTES</span><h2 id="timeline-title">未来两小时窗口</h2></div>
+          <div><span class="micro-label">TRIP WINDOW</span><h2 id="timeline-title">覆盖到达时刻的降雨窗口</h2></div>
           <div class="timeline-key"><i></i>15 分钟降水量 <b>到达时刻</b></div>
         </div>
         <div id="timeline" class="timeline" aria-live="polite"></div>

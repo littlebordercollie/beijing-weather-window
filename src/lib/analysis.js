@@ -17,8 +17,25 @@ function slotAtOrAfter(times, target) {
   return index === -1 ? times.length - 1 : index;
 }
 
+function slotAtOrBefore(times, target) {
+  for (let index = times.length - 1; index >= 0; index -= 1) {
+    if (parseBeijingTime(times[index]) <= target) return index;
+  }
+  return 0;
+}
+
+function isFreezingPrecipitation(weatherCode) {
+  return [56, 57, 66, 67].includes(Number(weatherCode));
+}
+
+function isThunderstorm(weatherCode) {
+  return [95, 96, 99].includes(Number(weatherCode));
+}
+
 function riskFrom(precipitation, weatherCode, probability = 0) {
-  if (weatherCode >= 95 || precipitation >= 1.5) return { key: 'high', label: '高风险', score: 3 };
+  if (isThunderstorm(weatherCode) || isFreezingPrecipitation(weatherCode) || precipitation >= 1.5) {
+    return { key: 'high', label: '高风险', score: 3 };
+  }
   if (precipitation >= 0.2 || probability >= 60 || weatherCode >= 61) return { key: 'medium', label: '中风险', score: 2 };
   return { key: 'low', label: '低风险', score: 1 };
 }
@@ -29,10 +46,21 @@ function formatClock(date) {
   }).format(date);
 }
 
-function findDryWindow(times, precipitation, fromIndex, minSlots = 2) {
+function hourlyProbabilityAt(hourly, target) {
+  if (!hourly?.time?.length) return 0;
+  const index = slotAtOrBefore(hourly.time, target);
+  return Number(hourly.precipitation_probability?.[index] ?? 0);
+}
+
+function findDryWindow(times, precipitation, weatherCodes, hourly, fromIndex, minSlots = 2) {
   let start = null;
   for (let i = fromIndex; i < Math.min(times.length, fromIndex + 12); i += 1) {
-    if ((precipitation[i] ?? 0) <= 0.1) {
+    const slotTime = parseBeijingTime(times[i]);
+    const probability = hourlyProbabilityAt(hourly, slotTime);
+    const weatherCode = Number(weatherCodes?.[i] ?? 0);
+    const isLowRain = Number(precipitation[i] ?? 0) <= 0.1;
+    const isHazardous = isThunderstorm(weatherCode) || isFreezingPrecipitation(weatherCode);
+    if (isLowRain && !isHazardous && probability < 60) {
       if (start === null) start = i;
       if (i - start + 1 >= minSlots) {
         return { start: parseBeijingTime(times[start]), end: parseBeijingTime(times[i]) };
@@ -55,14 +83,35 @@ export function analyzeWeather(weather, etaMinutes, now = new Date()) {
   const arrivalIndex = slotAtOrAfter(timeline.time, arrival);
   const arrivalPrecipitation = Number(timeline.precipitation[arrivalIndex] ?? 0);
   const arrivalCode = Number(timeline.weather_code[arrivalIndex] ?? weather.current.weather_code ?? 0);
-  const hourIndex = weather.hourly?.time
-    ? slotAtOrAfter(weather.hourly.time, arrival)
-    : 0;
-  const probability = Number(weather.hourly?.precipitation_probability?.[hourIndex] ?? 0);
-  const currentRisk = riskFrom(Number(weather.current.precipitation ?? 0), Number(weather.current.weather_code ?? 0), probability);
+  const probability = hourlyProbabilityAt(weather.hourly, arrival);
+  const currentProbability = hourlyProbabilityAt(weather.hourly, now);
+  const currentRisk = riskFrom(
+    Number(weather.current.precipitation ?? 0),
+    Number(weather.current.weather_code ?? 0),
+    currentProbability,
+  );
   const arrivalRisk = riskFrom(arrivalPrecipitation, arrivalCode, probability);
-  const risk = currentRisk.score >= arrivalRisk.score ? currentRisk : arrivalRisk;
-  const dryWindow = findDryWindow(timeline.time, timeline.precipitation, nowIndex);
+  const journeyStart = Math.min(nowIndex, arrivalIndex);
+  const journeyEnd = Math.max(nowIndex, arrivalIndex);
+  const journeyRisks = timeline.time.slice(journeyStart, journeyEnd + 1).map((time, offset) => {
+    const index = journeyStart + offset;
+    const precipitation = Number(timeline.precipitation[index] ?? 0);
+    const code = Number(timeline.weather_code[index] ?? 0);
+    return {
+      time,
+      code,
+      risk: riskFrom(precipitation, code, hourlyProbabilityAt(weather.hourly, parseBeijingTime(time))),
+    };
+  });
+  const risk = [currentRisk, arrivalRisk, ...journeyRisks.map((slot) => slot.risk)]
+    .reduce((highest, candidate) => candidate.score > highest.score ? candidate : highest, currentRisk);
+  const dryWindow = findDryWindow(
+    timeline.time,
+    timeline.precipitation,
+    timeline.weather_code,
+    weather.hourly,
+    nowIndex,
+  );
 
   const nextSlots = timeline.precipitation.slice(nowIndex, nowIndex + 8).map(Number);
   const firstHalf = nextSlots.slice(0, 4).reduce((sum, value) => sum + value, 0);
@@ -70,6 +119,10 @@ export function analyzeWeather(weather, etaMinutes, now = new Date()) {
   const trend = secondHalf > firstHalf + 0.4 ? '增强' : secondHalf + 0.4 < firstHalf ? '减弱' : '变化不大';
 
   let headline = `到达时预计${weatherLabel(arrivalCode)}`;
+  if (risk.score > arrivalRisk.score) {
+    const firstHazard = journeyRisks.find((slot) => slot.risk.score === risk.score);
+    if (firstHazard) headline = `途中 ${formatClock(parseBeijingTime(firstHazard.time))} 前后${weatherLabel(firstHazard.code)}`;
+  }
   let advice = '可按计划出发，仍建议出门前再次刷新。';
   if (risk.key === 'high') {
     advice = dryWindow
@@ -80,9 +133,12 @@ export function analyzeWeather(weather, etaMinutes, now = new Date()) {
       ? `有被雨淋到的可能，${formatClock(dryWindow.start)}—${formatClock(dryWindow.end)} 相对更稳。`
       : '存在阵雨可能，建议携带雨具并在出发前再次刷新。';
   }
-  if (arrivalPrecipitation > 0) headline = `到达时约 ${arrivalPrecipitation.toFixed(1)} mm / 15 分钟`;
+  if (arrivalPrecipitation > 0 && risk.score === arrivalRisk.score) {
+    headline = `到达时约 ${arrivalPrecipitation.toFixed(1)} mm / 15 分钟`;
+  }
 
-  const slots = timeline.time.slice(nowIndex, nowIndex + 8).map((time, offset) => {
+  const timelineEnd = Math.max(nowIndex + 8, arrivalIndex + 1);
+  const slots = timeline.time.slice(nowIndex, timelineEnd).map((time, offset) => {
     const index = nowIndex + offset;
     return {
       time,
@@ -131,7 +187,7 @@ export function analyzeProbeSpread(probes, weatherResults, arrival) {
   if (uniqueGridCount < 3) {
     statement = `5 个探针只落入 ${uniqueGridCount} 个独立模型网格，空间证据不足，不推断雨带方向。`;
   } else if (spread >= 0.3) {
-    statement = `${wettest.direction}侧格点雨信号更强，雨区可能从${wettest.direction}侧影响目的地；仍需雷达验证。`;
+    statement = `${wettest.direction}侧格点雨信号更强；这只是同一时刻的空间差异，不能据此判断雨区移动方向。`;
   }
   return { rows, uniqueGridCount, spread, statement };
 }

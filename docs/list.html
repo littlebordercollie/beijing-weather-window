@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="以列表形式查看北京目的地附近参考台站、格点更新时间和未来降雨窗口。">
     <meta name="theme-color" content="#07151c">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://photon.komoot.io; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
     <title>雨窗｜观测与窗口列表</title>
     <link rel="preconnect" href="https://api.open-meteo.com">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
-    <script type="module" crossorigin src="/beijing-weather-window/assets/list-DumJFyDS.js"></script>
-    <link rel="modulepreload" crossorigin href="/beijing-weather-window/assets/styles-CWKjRxZR.js">
-    <link rel="stylesheet" crossorigin href="/beijing-weather-window/assets/styles-DxKL0XR4.css">
+    <script type="module" crossorigin src="/beijing-weather-window/assets/list-DayZsJkF.js"></script>
+    <link rel="modulepreload" crossorigin href="/beijing-weather-window/assets/styles-DcxmF4cm.js">
+    <link rel="stylesheet" crossorigin href="/beijing-weather-window/assets/styles-CUw5PoEi.css">
   </head>
   <body class="list-page">
     <div class="weather-atmosphere" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -44,11 +46,11 @@
           <div class="inline-controls">
             <div class="eta-control">
               <div class="control-label"><span>预计多久到</span><b id="eta-value">45 分钟</b></div>
-              <input id="eta-input" type="range" min="15" max="180" step="15" value="45">
+              <input id="eta-input" type="range" min="15" max="180" step="15" value="45" aria-label="预计到达分钟数">
               <div class="range-labels"><span>15 分</span><span>3 小时</span></div>
             </div>
-            <div class="radius-control"><span>半径</span><div class="segmented"><button type="button" data-radius="3">3 km</button><button type="button" data-radius="5">5 km</button></div></div>
-            <button id="locate-button" class="locate-button locate-button--square" type="button" title="使用我的位置">◎</button>
+            <fieldset class="radius-control"><legend>半径</legend><div class="segmented"><button type="button" data-radius="3">3 km</button><button type="button" data-radius="5">5 km</button></div></fieldset>
+            <button id="locate-button" class="locate-button locate-button--square" type="button" aria-label="使用我的大致位置">◎</button>
           </div>
           <div id="data-status" class="data-status" data-state="loading" role="status"><span class="status-dot"></span>正在初始化…</div>
         </form>
@@ -96,8 +98,8 @@
         <div><span>DATA LEDGER</span><h2>这页的数据从哪里来</h2><p>页面不把格点叫成站点，也不拿全市无坐标雨量站硬算附近距离。</p></div>
         <a id="source-station" href="#"><b>01</b><span>参考台站</span><strong>DB11/T 1643—2023</strong><small>站号、坐标、海拔 · 发布于 <i id="source-station-date">—</i></small></a>
         <a href="https://open-meteo.com/" target="_blank" rel="noreferrer"><b>02</b><span>天气格点</span><strong>Open-Meteo</strong><small>实况估计与未来 15 分钟时次</small></a>
-        <a href="https://nsbd.swj.beijing.gov.cn/csyq1.html" target="_blank" rel="noreferrer"><b>03</b><span>全市日雨量</span><strong>北京市水务局</strong><small>8 时至次日 8 时累计雨量</small></a>
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer"><b>04</b><span>地点与地图</span><strong>OpenStreetMap</strong><small>Nominatim 搜索与地图底图</small></a>
+        <a href="https://nsbd.swj.beijing.gov.cn/csyq1.html" target="_blank" rel="noreferrer"><b>03</b><span>全市日雨量</span><strong>北京市水务局</strong><small>当前仅链接官方页，未调用未授权接口</small></a>
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer"><b>04</b><span>地点与地图</span><strong>OpenStreetMap</strong><small>Photon 地点搜索与 CARTO 底图</small></a>
       </section>
 
       <footer class="site-footer"><b>雨窗</b><span>非官方预报 · 仅作出行决策辅助 · 强对流天气以官方预警为准</span><a href="./index.html" data-view-link="./index.html">回到地图 ↑</a></footer>

@@ -2,6 +2,11 @@
   "name": "beijing-weather-window",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=22.12 <23",
+    "npm": ">=10 <11"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

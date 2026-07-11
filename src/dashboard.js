@@ -1,11 +1,15 @@
 import { REFERENCE_STATIONS } from './data/stations.js';
 import { analyzeProbeSpread, analyzeWeather, weatherLabel } from './lib/analysis.js';
-import { fetchCityRainContext, fetchWeather, geocodePlace } from './lib/api.js';
-import { makeProbePoints, nearbyStations } from './lib/geo.js';
+import { fetchWeather, geocodePlace } from './lib/api.js';
+import { haversineKm, makeProbePoints, nearbyStations } from './lib/geo.js';
 import { readState, writeState } from './lib/state.js';
 
 const fmt = new Intl.DateTimeFormat('zh-CN', {
   timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false,
+});
+const fullFmt = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 });
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
@@ -50,6 +54,7 @@ export function createDashboard({ renderView, onLocationChange }) {
   let state = readState();
   let requestId = 0;
   let refreshTimer;
+  let weatherController;
   const elements = {
     form: document.querySelector('#location-form'),
     input: document.querySelector('#location-input'),
@@ -85,7 +90,21 @@ export function createDashboard({ renderView, onLocationChange }) {
 
   function setStatus(message, stateName = 'loading') {
     elements.status.dataset.state = stateName;
-    elements.status.innerHTML = `<span class="status-dot"></span>${escapeHtml(message)}`;
+    elements.status.replaceChildren();
+    const dot = document.createElement('span');
+    dot.className = 'status-dot';
+    elements.status.append(dot, document.createTextNode(message));
+  }
+
+  function clearWeatherText() {
+    elements.riskLabel.forEach((el) => {
+      el.textContent = '数据过期';
+      el.dataset.risk = 'unknown';
+    });
+    elements.riskHeadline.forEach((el) => { el.textContent = '无法生成当前判断'; });
+    elements.riskAdvice.forEach((el) => { el.textContent = '请稍后手动重试，强对流天气以官方预警为准。'; });
+    elements.observationTime.forEach((el) => { el.textContent = '—'; });
+    elements.weatherSnapshot.forEach((el) => { el.replaceChildren(); });
   }
 
   function setCommonText(data) {
@@ -100,7 +119,7 @@ export function createDashboard({ renderView, onLocationChange }) {
     });
     elements.riskHeadline.forEach((el) => { el.textContent = analysis.headline; });
     elements.riskAdvice.forEach((el) => { el.textContent = analysis.advice; });
-    elements.observationTime.forEach((el) => { el.textContent = targetWeather.current.time.slice(11); });
+    elements.observationTime.forEach((el) => { el.textContent = targetWeather.current.time.replace('T', ' '); });
     elements.weatherSnapshot.forEach((el) => {
       el.innerHTML = `
         <span><b>${Number(targetWeather.current.temperature_2m).toFixed(1)}°</b> 温度</span>
@@ -113,20 +132,22 @@ export function createDashboard({ renderView, onLocationChange }) {
 
   async function load() {
     window.clearTimeout(refreshTimer);
+    weatherController?.abort();
+    weatherController = new AbortController();
     const currentRequest = ++requestId;
     setStatus('正在对齐站点、格点与到达时刻…');
     const nearby = nearbyStations(state.location, REFERENCE_STATIONS, state.radiusKm);
     const probes = makeProbePoints(state.location, state.radiusKm);
     const points = [...probes, ...nearby];
     try {
-      const [weatherResults, cityRainResult] = await Promise.allSettled([
-        fetchWeather(points),
-        fetchCityRainContext(),
-      ]);
+      const weatherResults = await fetchWeather(points, { signal: weatherController.signal });
       if (currentRequest !== requestId) return;
-      if (weatherResults.status !== 'fulfilled') throw weatherResults.reason;
-      const weather = weatherResults.value;
+      const weather = weatherResults;
+      if (weather.length !== points.length) throw new Error('天气格点返回数量不完整');
       const targetWeather = weather[0];
+      if (!targetWeather?.current || !targetWeather?.minutely_15?.time?.length) {
+        throw new Error('天气数据结构不完整');
+      }
       const analysis = analyzeWeather(targetWeather, state.etaMinutes);
       const probeAnalysis = analyzeProbeSpread(probes, weather.slice(0, probes.length), analysis.arrival);
       const nextCheckTime = fmt.format(new Date(Date.now() + AUTO_REFRESH_MS));
@@ -136,7 +157,7 @@ export function createDashboard({ renderView, onLocationChange }) {
           ...station,
           gridWeather: stationGrid,
           gridTime: stationGrid.current.time,
-          nextGridTime: addMinutesToIso(stationGrid.current.time, stationGrid.current.interval / 60),
+          gridIntervalEnd: addMinutesToIso(stationGrid.current.time, stationGrid.current.interval / 60),
           nextCheckTime,
           condition: weatherLabel(stationGrid.current.weather_code),
         };
@@ -149,17 +170,26 @@ export function createDashboard({ renderView, onLocationChange }) {
         probeAnalysis,
         targetWeather,
         analysis,
-        cityRain: cityRainResult.status === 'fulfilled' ? cityRainResult.value : null,
-        cityRainError: cityRainResult.status === 'rejected' ? cityRainResult.reason : null,
+        targetGridDistanceKm: haversineKm(state.location, {
+          lat: Number(targetWeather.latitude), lon: Number(targetWeather.longitude),
+        }),
+        fetchedAt: new Date(),
+        cityRain: null,
+        cityRainUnavailableReason: '公开使用授权待确认，本版未调用水务接口',
       };
       setCommonText(data);
       renderView(data);
-      setStatus(`格点时次 ${targetWeather.current.time.slice(11)} · ${nearby.length} 个参考台站 · ${nextCheckTime} 再检查`, 'ready');
-      refreshTimer = window.setTimeout(load, AUTO_REFRESH_MS);
+      const offsetWarning = data.targetGridDistanceKm > state.radiusKm
+        ? ` · 注意：目标格点偏离 ${data.targetGridDistanceKm.toFixed(1)} km`
+        : '';
+      setStatus(`更新 ${fullFmt.format(data.fetchedAt)} · ${nearby.length} 个参考台站 · ${nextCheckTime} 再检查${offsetWarning}`, 'ready');
     } catch (error) {
       if (currentRequest !== requestId) return;
+      clearWeatherText();
       setStatus(`数据暂时不可达：${error.name === 'AbortError' ? '请求超时' : error.message}`, 'error');
       renderView({ ...state, nearby, error });
+    } finally {
+      if (currentRequest === requestId) refreshTimer = window.setTimeout(load, AUTO_REFRESH_MS);
     }
   }
 
@@ -181,7 +211,12 @@ export function createDashboard({ renderView, onLocationChange }) {
       const results = await geocodePlace(query);
       renderSearchResults(elements.searchResults, results, chooseLocation);
     } catch (error) {
-      renderSearchResults(elements.searchResults, [], chooseLocation);
+      elements.searchResults.replaceChildren();
+      const message = document.createElement('div');
+      message.className = 'search-empty';
+      message.textContent = '地点服务暂时不可达，可输入北京经纬度或在地图上点选。';
+      elements.searchResults.append(message);
+      elements.searchResults.hidden = false;
       setStatus(`地点搜索失败：${error.name === 'AbortError' ? '请求超时' : error.message}`, 'error');
     } finally {
       elements.submit.disabled = false;
@@ -212,12 +247,11 @@ export function createDashboard({ renderView, onLocationChange }) {
     }
     setStatus('正在读取设备位置…');
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => chooseLocation({
-        name: '我的位置',
-        displayName: '设备定位点',
-        lat: coords.latitude,
-        lon: coords.longitude,
-      }),
+      ({ coords }) => {
+        const lat = Number(coords.latitude.toFixed(4));
+        const lon = Number(coords.longitude.toFixed(4));
+        chooseLocation({ name: '我的位置（约）', displayName: '设备定位点（已降低精度）', lat, lon });
+      },
       () => setStatus('无法取得设备位置，请检查浏览器定位权限。', 'error'),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
@@ -269,7 +303,7 @@ export function stationCardMarkup(station) {
       </div>
       <dl>
         <div><dt>站旁格点时次</dt><dd>${station.gridTime.slice(11)}</dd></div>
-        <div><dt>下一预报时次</dt><dd>${station.nextGridTime}</dd></div>
+        <div><dt>当前值时段至</dt><dd>${station.gridIntervalEnd}</dd></div>
         <div><dt>下次页面检查</dt><dd>${station.nextCheckTime}</dd></div>
         <div><dt>气压 / 湿度</dt><dd>${Number(weather.surface_pressure).toFixed(0)} hPa · ${Number(weather.relative_humidity_2m).toFixed(0)}%</dd></div>
       </dl>
