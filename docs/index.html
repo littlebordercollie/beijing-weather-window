@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="输入北京目的地与到达时间，查看附近公开参考台站、周边格点与未来两小时降雨窗口。">
+    <meta name="theme-color" content="#07151c">
+    <title>雨窗｜北京目的地降雨决策地图</title>
+    <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
+    <link rel="preconnect" href="https://api.open-meteo.com">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
+    <script type="module" crossorigin src="/beijing-weather-window/assets/map-DWv8u6kk.js"></script>
+    <link rel="modulepreload" crossorigin href="/beijing-weather-window/assets/styles-D5AaNiqm.js">
+    <link rel="stylesheet" crossorigin href="/beijing-weather-window/assets/styles-DxKL0XR4.css">
+    <link rel="stylesheet" crossorigin href="/beijing-weather-window/assets/map-CIGW-MKW.css">
+  </head>
+  <body class="map-page">
+    <div class="weather-atmosphere" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <header class="topbar">
+      <a class="brand" href="./index.html" data-view-link="./index.html" aria-label="雨窗首页">
+        <span class="brand__mark"><i></i></span>
+        <span><b>雨窗</b><small>BEIJING WEATHER WINDOW</small></span>
+      </a>
+      <nav class="view-switch" aria-label="视图切换">
+        <a class="is-active" href="./index.html" data-view-link="./index.html"><span>⌖</span>地图</a>
+        <a href="./list.html" data-view-link="./list.html"><span>≡</span>列表</a>
+      </nav>
+      <div class="topbar__meta">
+        <span class="live-signal"><i></i>LIVE DATA</span>
+        <a href="./research/research-2026-07-11.md">数据说明 ↗</a>
+      </div>
+    </header>
+
+    <main class="map-shell">
+      <div id="weather-map" aria-label="北京气象站与目的地地图"></div>
+
+      <section class="command-panel glass-panel" aria-labelledby="command-title">
+        <div class="eyebrow"><span>01</span> DESTINATION BRIEF</div>
+        <h1 id="command-title">到达时，<em>雨走了吗？</em></h1>
+        <p class="command-panel__intro">输入目的地与到达耗时。系统把公开参考台站、五个周边格点和未来两小时放到同一张图里。</p>
+
+        <form id="location-form" class="location-form">
+          <label for="location-input">目的地</label>
+          <div class="search-field">
+            <span>⌖</span>
+            <input id="location-input" name="location" autocomplete="off" placeholder="例如：朝阳公园南门" required>
+            <button id="search-submit" type="submit">定位</button>
+          </div>
+          <div id="search-results" class="search-results" hidden></div>
+        </form>
+
+        <div class="control-grid">
+          <div class="eta-control">
+            <div class="control-label"><span>预计多久到</span><b id="eta-value">45 分钟</b></div>
+            <input id="eta-input" type="range" min="15" max="180" step="15" value="45" aria-label="预计到达分钟数">
+            <div class="range-labels"><span>15 分</span><span>3 小时</span></div>
+          </div>
+          <div class="radius-control">
+            <span>观测半径</span>
+            <div class="segmented">
+              <button type="button" data-radius="3" aria-pressed="true">3 km</button>
+              <button type="button" data-radius="5" aria-pressed="false">5 km</button>
+            </div>
+          </div>
+        </div>
+
+        <button id="locate-button" class="locate-button" type="button"><span>◎</span>使用我的位置</button>
+        <div id="data-status" class="data-status" data-state="loading" role="status"><span class="status-dot"></span>正在初始化…</div>
+
+        <div class="truth-note">
+          <span>!</span>
+          <p><b>证据边界</b> 站号与坐标来自北京市官方标准；实时数值为站旁格点估计，不冒充台站原始观测。</p>
+        </div>
+      </section>
+
+      <aside class="insight-panel glass-panel" aria-label="到达风险判断">
+        <div class="insight-panel__top">
+          <div>
+            <span class="micro-label">ARRIVAL / <b data-arrival-time>--:--</b></span>
+            <h2 data-place-name>朝阳公园南门</h2>
+            <small>坐标 <span data-place-coord>--</span></small>
+          </div>
+          <span class="risk-orb" data-risk-label data-risk="low">计算中</span>
+        </div>
+        <div class="arrival-statement">
+          <span class="arrival-statement__line"></span>
+          <div><small>到达判断</small><b data-risk-headline>正在读取未来两小时</b></div>
+        </div>
+        <p data-risk-advice>数据返回后生成可复现的出行建议。</p>
+        <div class="weather-snapshot" data-weather-snapshot></div>
+        <div class="insight-grid">
+          <div><span>圈内参考站</span><b><i data-station-count>0</i> 站</b><small id="nearest-station">正在计算</small></div>
+          <div><span>独立模型网格</span><b><i id="grid-count">—</i> 格</b><small>五点探针覆盖</small></div>
+          <div><span>未来趋势</span><b id="trend-value">—</b><small>未来两小时</small></div>
+          <div id="city-rain-context"><b>—</b><span>正在读取全市雨情</span></div>
+        </div>
+        <p id="probe-statement" class="probe-statement">正在比较周边格点信号…</p>
+      </aside>
+
+      <section class="timeline-panel glass-panel" aria-labelledby="timeline-title">
+        <div class="timeline-panel__head">
+          <div><span class="micro-label">NEXT 120 MINUTES</span><h2 id="timeline-title">未来两小时窗口</h2></div>
+          <div class="timeline-key"><i></i>15 分钟降水量 <b>到达时刻</b></div>
+        </div>
+        <div id="timeline" class="timeline" aria-live="polite"></div>
+      </section>
+
+      <section class="station-drawer glass-panel" aria-labelledby="station-preview-title">
+        <div class="station-drawer__head">
+          <div><span class="micro-label">VERIFIED STATIONS</span><h2 id="station-preview-title">圈内参考台站</h2></div>
+          <a href="./list.html" data-view-link="./list.html">查看完整列表 →</a>
+        </div>
+        <div id="station-preview" class="station-preview"></div>
+      </section>
+
+      <div class="map-legend" aria-label="地图图例">
+        <span><i class="legend-destination"></i>目的地</span>
+        <span><i class="legend-station"></i>公开参考台站</span>
+        <span><i class="legend-probe"></i>周边格点探针</span>
+        <small>点击地图可直接选点</small>
+      </div>
+    </main>
+  </body>
+</html>

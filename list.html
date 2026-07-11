@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="以列表形式查看北京目的地附近参考台站、格点更新时间和未来降雨窗口。">
+    <meta name="theme-color" content="#07151c">
+    <title>雨窗｜观测与窗口列表</title>
+    <link rel="preconnect" href="https://api.open-meteo.com">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
+  </head>
+  <body class="list-page">
+    <div class="weather-atmosphere" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <header class="topbar">
+      <a class="brand" href="./index.html" data-view-link="./index.html">
+        <span class="brand__mark"><i></i></span>
+        <span><b>雨窗</b><small>BEIJING WEATHER WINDOW</small></span>
+      </a>
+      <nav class="view-switch" aria-label="视图切换">
+        <a href="./index.html" data-view-link="./index.html"><span>⌖</span>地图</a>
+        <a class="is-active" href="./list.html" data-view-link="./list.html"><span>≡</span>列表</a>
+      </nav>
+      <div class="topbar__meta"><span class="live-signal"><i></i>LIVE DATA</span><a href="#sources">数据说明 ↓</a></div>
+    </header>
+
+    <main class="list-shell">
+      <section class="list-hero">
+        <div class="list-hero__title">
+          <div class="eyebrow"><span>02</span> EVIDENCE LEDGER</div>
+          <h1>把每条判断，<em>摊开来看。</em></h1>
+          <p>台站、格点与预报时次分开显示。没有公开坐标的数据，不进入附近站点计数。</p>
+        </div>
+        <form id="location-form" class="location-form location-form--horizontal">
+          <label for="location-input">目的地</label>
+          <div class="search-field">
+            <span>⌖</span>
+            <input id="location-input" autocomplete="off" placeholder="搜索北京地点" required>
+            <button id="search-submit" type="submit">定位</button>
+          </div>
+          <div id="search-results" class="search-results" hidden></div>
+          <div class="inline-controls">
+            <div class="eta-control">
+              <div class="control-label"><span>预计多久到</span><b id="eta-value">45 分钟</b></div>
+              <input id="eta-input" type="range" min="15" max="180" step="15" value="45">
+              <div class="range-labels"><span>15 分</span><span>3 小时</span></div>
+            </div>
+            <div class="radius-control"><span>半径</span><div class="segmented"><button type="button" data-radius="3">3 km</button><button type="button" data-radius="5">5 km</button></div></div>
+            <button id="locate-button" class="locate-button locate-button--square" type="button" title="使用我的位置">◎</button>
+          </div>
+          <div id="data-status" class="data-status" data-state="loading" role="status"><span class="status-dot"></span>正在初始化…</div>
+        </form>
+      </section>
+
+      <section class="decision-banner">
+        <div class="decision-banner__place">
+          <span class="micro-label">DESTINATION / <span data-place-coord>--</span></span>
+          <h2 data-place-name>朝阳公园南门</h2>
+        </div>
+        <div class="decision-banner__risk"><span data-risk-label data-risk="low">计算中</span><b data-risk-headline>正在读取</b><small data-risk-advice>请稍候</small></div>
+        <div class="decision-banner__stats">
+          <span><small>预计到达</small><b data-arrival-time>--:--</b></span>
+          <span><small>圈内参考站</small><b><i data-station-count>0</i> 站</b></span>
+          <span><small>格点时次</small><b data-observation-time>--:--</b></span>
+        </div>
+      </section>
+
+      <section class="list-section timeline-section">
+        <div class="section-heading"><div><span>01 / WINDOW</span><h2>到达窗口</h2></div><div class="weather-snapshot" data-weather-snapshot></div></div>
+        <div id="timeline" class="timeline timeline--wide"></div>
+      </section>
+
+      <section class="list-section">
+        <div class="section-heading">
+          <div><span>02 / STATIONS</span><h2><i data-station-count>0</i> 个公开参考台站在圈内</h2></div>
+          <p>站号与坐标来自官方标准；卡片数值是站旁格点估计。</p>
+        </div>
+        <div id="station-list" class="station-list"></div>
+      </section>
+
+      <section class="list-grid">
+        <div class="list-section">
+          <div class="section-heading"><div><span>03 / PROBES</span><h2>五点空间探针</h2></div></div>
+          <p id="probe-statement" class="probe-statement">正在比较周边格点…</p>
+          <div id="probe-list" class="probe-list"></div>
+        </div>
+        <div class="list-section rain-context">
+          <div class="section-heading"><div><span>04 / CITY RAIN</span><h2>全市日雨量背景</h2></div></div>
+          <div id="city-rain-list"></div>
+        </div>
+      </section>
+
+      <section id="sources" class="source-ledger">
+        <div><span>DATA LEDGER</span><h2>这页的数据从哪里来</h2><p>页面不把格点叫成站点，也不拿全市无坐标雨量站硬算附近距离。</p></div>
+        <a id="source-station" href="#"><b>01</b><span>参考台站</span><strong>DB11/T 1643—2023</strong><small>站号、坐标、海拔 · 发布于 <i id="source-station-date">—</i></small></a>
+        <a href="https://open-meteo.com/" target="_blank" rel="noreferrer"><b>02</b><span>天气格点</span><strong>Open-Meteo</strong><small>实况估计与未来 15 分钟时次</small></a>
+        <a href="https://nsbd.swj.beijing.gov.cn/csyq1.html" target="_blank" rel="noreferrer"><b>03</b><span>全市日雨量</span><strong>北京市水务局</strong><small>8 时至次日 8 时累计雨量</small></a>
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer"><b>04</b><span>地点与地图</span><strong>OpenStreetMap</strong><small>Nominatim 搜索与地图底图</small></a>
+      </section>
+
+      <footer class="site-footer"><b>雨窗</b><span>非官方预报 · 仅作出行决策辅助 · 强对流天气以官方预警为准</span><a href="./index.html" data-view-link="./index.html">回到地图 ↑</a></footer>
+    </main>
+    <script type="module" src="/src/list.js"></script>
+  </body>
+</html>

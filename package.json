@@ -1,0 +1,21 @@
+{
+  "name": "beijing-weather-window",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
+  }
+}
