@@ -7,6 +7,7 @@ import { readState, writeState } from './lib/state.js';
 const fmt = new Intl.DateTimeFormat('zh-CN', {
   timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false,
 });
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
 function escapeHtml(value = '') {
   return String(value)
@@ -48,6 +49,7 @@ function renderSearchResults(container, results, choose) {
 export function createDashboard({ renderView, onLocationChange }) {
   let state = readState();
   let requestId = 0;
+  let refreshTimer;
   const elements = {
     form: document.querySelector('#location-form'),
     input: document.querySelector('#location-input'),
@@ -110,6 +112,7 @@ export function createDashboard({ renderView, onLocationChange }) {
   }
 
   async function load() {
+    window.clearTimeout(refreshTimer);
     const currentRequest = ++requestId;
     setStatus('正在对齐站点、格点与到达时刻…');
     const nearby = nearbyStations(state.location, REFERENCE_STATIONS, state.radiusKm);
@@ -126,6 +129,7 @@ export function createDashboard({ renderView, onLocationChange }) {
       const targetWeather = weather[0];
       const analysis = analyzeWeather(targetWeather, state.etaMinutes);
       const probeAnalysis = analyzeProbeSpread(probes, weather.slice(0, probes.length), analysis.arrival);
+      const nextCheckTime = fmt.format(new Date(Date.now() + AUTO_REFRESH_MS));
       const stationWeather = nearby.map((station, index) => {
         const stationGrid = weather[probes.length + index];
         return {
@@ -133,6 +137,7 @@ export function createDashboard({ renderView, onLocationChange }) {
           gridWeather: stationGrid,
           gridTime: stationGrid.current.time,
           nextGridTime: addMinutesToIso(stationGrid.current.time, stationGrid.current.interval / 60),
+          nextCheckTime,
           condition: weatherLabel(stationGrid.current.weather_code),
         };
       });
@@ -149,7 +154,8 @@ export function createDashboard({ renderView, onLocationChange }) {
       };
       setCommonText(data);
       renderView(data);
-      setStatus(`格点时次 ${targetWeather.current.time.slice(11)} · ${nearby.length} 个公开参考台站在圈内`, 'ready');
+      setStatus(`格点时次 ${targetWeather.current.time.slice(11)} · ${nearby.length} 个参考台站 · ${nextCheckTime} 再检查`, 'ready');
+      refreshTimer = window.setTimeout(load, AUTO_REFRESH_MS);
     } catch (error) {
       if (currentRequest !== requestId) return;
       setStatus(`数据暂时不可达：${error.name === 'AbortError' ? '请求超时' : error.message}`, 'error');
@@ -264,6 +270,7 @@ export function stationCardMarkup(station) {
       <dl>
         <div><dt>站旁格点时次</dt><dd>${station.gridTime.slice(11)}</dd></div>
         <div><dt>下一预报时次</dt><dd>${station.nextGridTime}</dd></div>
+        <div><dt>下次页面检查</dt><dd>${station.nextCheckTime}</dd></div>
         <div><dt>气压 / 湿度</dt><dd>${Number(weather.surface_pressure).toFixed(0)} hPa · ${Number(weather.relative_humidity_2m).toFixed(0)}%</dd></div>
       </dl>
       <div class="evidence-label"><i></i>站点坐标真实 · 数值为站旁格点估计</div>

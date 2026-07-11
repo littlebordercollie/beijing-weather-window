@@ -1,4 +1,4 @@
-import{c as s,t as o,s as a,S as i}from"./styles-D5AaNiqm.js";function l(e){if(e.error){document.querySelector("#station-list").innerHTML='<div class="panel-error">天气接口暂时不可达，请稍后重试。未使用演示数据替代。</div>';return}document.querySelector("#timeline").innerHTML=o(e.analysis.slots),document.querySelector("#station-list").innerHTML=e.stationWeather.length?e.stationWeather.map(a).join(""):`
+import{c as s,t as o,s as a,S as i}from"./styles-CWKjRxZR.js";function l(e){if(e.error){document.querySelector("#station-list").innerHTML='<div class="panel-error">天气接口暂时不可达，请稍后重试。未使用演示数据替代。</div>';return}document.querySelector("#timeline").innerHTML=o(e.analysis.slots),document.querySelector("#station-list").innerHTML=e.stationWeather.length?e.stationWeather.map(a).join(""):`
       <div class="empty-card empty-card--large">
         <b>${e.radiusKm} km 内没有公开参考台站</b>
         <span>这只代表 DB11/T 1643—2023 的 18 个参考台站中没有点落入范围，不代表附近没有区域自动站。</span>
